@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数学教学工具箱</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#1e40af', // blue-800
+                        secondary: '#3b82f6', // blue-500
+                        accent: '#eff6ff', // blue-50
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-primary text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center space-x-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 3.666V19a2 2 0 01-2 2H5a2 2 0 01-2-2V4a2 2 0 012-2h12a2 2 0 012 2v8.666M13 10V4.5L19 10H13z" />
+                    </svg>
+                    <h1 class="text-2xl font-bold tracking-wide">数学教学工具箱</h1>
+                </div>
+                
+                <div class="w-full md:w-96 relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <input type="text" id="searchInput" placeholder="搜索工具..." 
+                        class="block w-full pl-10 pr-3 py-2 border-none rounded-lg leading-5 bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-300 sm:text-sm shadow-md transition duration-150 ease-in-out">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
+        
+        <!-- Welcome Section -->
+        <div class="mb-10 text-center">
+            <h2 class="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+                欢迎来到我的数学课堂
+            </h2>
+            <p class="mt-4 max-w-2xl mx-auto text-xl text-gray-500">
+                这里汇集了各类数学教学演示工具，帮助学生直观理解数学概念。
+            </p>
+        </div>
+
+        <!-- Tools Grid -->
+        <div id="toolsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Cards will be injected here by JavaScript -->
+        </div>
+
+        <!-- No Results Message -->
+        <div id="noResults" class="hidden text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">未找到相关工具</h3>
+            <p class="mt-1 text-sm text-gray-500">请尝试更换搜索关键词。</p>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-auto">
+        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+            <p class="text-center text-sm text-gray-500">
+                &copy; 2024 个人教学资源网. All rights reserved.
+            </p>
+        </div>
+    </footer>
+
+    <script>
+        // Data Source
+        const tools = [
+            { 
+                file: "一下P24数一数正方体.html", 
+                title: "一下P24 数一数正方体", 
+                desc: "一年级下册 | 培养空间观念，通过交互数出正方体数量。",
+                tags: ["一年级", "立体几何"]
+            },
+            { 
+                file: "一下P2虚拟钉子板.html", 
+                title: "一下P2 虚拟钉子板", 
+                desc: "一年级下册 | 在钉子板上围出各种图形，直观感受图形特征。",
+                tags: ["一年级", "平面几何"]
+            },
+            { 
+                file: "三下P3轴对称演示.html", 
+                title: "三下P3 轴对称演示", 
+                desc: "三年级下册 | 动态演示轴对称图形的折叠过程。",
+                tags: ["三年级", "轴对称"]
+            },
+            { 
+                file: "二下P68九宫格数学探险.html", 
+                title: "二下P68 九宫格数学探险", 
+                desc: "二年级下册 | 趣味九宫格游戏，锻炼逻辑推理能力。",
+                tags: ["二年级", "逻辑推理"]
+            },
+            { 
+                file: "二下有余数除法.html", 
+                title: "二下 有余数除法", 
+                desc: "二年级下册 | 可视化演示有余数除法的分物过程。",
+                tags: ["二年级", "代数计算"]
+            },
+            { 
+                file: "五上小路面积.html", 
+                title: "五上 小路面积", 
+                desc: "五年级上册 | 探索不规则小路面积的计算方法（平移法）。",
+                tags: ["五年级", "面积计算"]
+            },
+            { 
+                file: "五上正方形三角形相遇问题.html", 
+                title: "五上 正方形三角形相遇", 
+                desc: "五年级上册 | 动态演示行程问题中的相遇情境。",
+                tags: ["五年级", "行程问题"]
+            },
+            { 
+                file: "五下总复习P120无盖盒子容积.html", 
+                title: "五下复习 无盖盒子容积", 
+                desc: "五年级下册 | 探究剪角大小对无盖盒子容积的影响。",
+                tags: ["五年级", "容积问题"]
+            },
+            { 
+                file: "六上三角形旋转扫过的区域面积.html", 
+                title: "六上 旋转扫过区域面积", 
+                desc: "六年级上册 | 动态展示图形旋转过程及扫掠面积。",
+                tags: ["六年级", "圆与扇形"]
+            },
+            { 
+                file: "科学今日月相.html", 
+                title: "科学 今日月相", 
+                desc: "科学拓展 | 观察和记录今日的月相变化。",
+                tags: ["科学", "天文"]
+            }
+        ];
+
+        const toolsGrid = document.getElementById('toolsGrid');
+        const searchInput = document.getElementById('searchInput');
+        const noResults = document.getElementById('noResults');
+
+        function renderTools(filterText = '') {
+            toolsGrid.innerHTML = '';
+            const lowerFilter = filterText.toLowerCase();
+
+            const filteredTools = tools.filter(tool => 
+                tool.title.toLowerCase().includes(lowerFilter) || 
+                tool.desc.toLowerCase().includes(lowerFilter) ||
+                tool.tags.some(tag => tag.toLowerCase().includes(lowerFilter))
+            );
+
+            if (filteredTools.length === 0) {
+                noResults.classList.remove('hidden');
+            } else {
+                noResults.classList.add('hidden');
+                
+                filteredTools.forEach(tool => {
+                    const card = document.createElement('a');
+                    card.href = tool.file;
+                    card.className = 'block bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden card-hover group';
+                    
+                    // Generate a color based on the first tag or default blue
+                    const tagColor = 'bg-blue-100 text-blue-800';
+                    
+                    let tagsHtml = tool.tags.map(tag => 
+                        `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${tagColor} mr-2">
+                            ${tag}
+                        </span>`
+                    ).join('');
+
+                    card.innerHTML = `
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="p-2 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-300 group-hover:text-secondary transition-colors" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-bold text-gray-900 mb-2 group-hover:text-primary transition-colors">${tool.title}</h3>
+                            <p class="text-sm text-gray-600 mb-4 h-10 overflow-hidden line-clamp-2">${tool.desc}</p>
+                            <div class="flex flex-wrap mt-auto">
+                                ${tagsHtml}
+                            </div>
+                        </div>
+                        <div class="bg-gray-50 px-6 py-3 border-t border-gray-100 group-hover:bg-blue-50 transition-colors">
+                            <span class="text-sm font-medium text-secondary flex items-center">
+                                打开工具
+                            </span>
+                        </div>
+                    `;
+                    toolsGrid.appendChild(card);
+                });
+            }
+        }
+
+        // Initial Render
+        renderTools();
+
+        // Search Listener
+        searchInput.addEventListener('input', (e) => {
+            renderTools(e.target.value);
+        });
+    </script>
+</body>
+</html>

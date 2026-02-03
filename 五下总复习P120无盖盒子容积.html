@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>无盖盒子容积问题</title>
+    <style>
+        :root {
+            --paper-color: #ffede6;
+            --paper-border: #d46a36;
+            --corner-color: #e6e7e9;
+            --bg-color: #f0f2f5;
+            --text-main: #333;
+            --panel-bg: rgba(255, 255, 255, 0.85);
+            --primary: #4a90e2;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: row;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: 'Segoe UI', 'Roboto', Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* Visualization Area */
+        .visualization-area {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* Sidebar Control Panel */
+        .sidebar {
+            width: 260px;
+            background: transparent;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            z-index: 100;
+            overflow-y: auto;
+            justify-content: center;
+            /* Vertically center content */
+        }
+
+        h2 {
+            margin: 0 0 10px 0;
+            font-size: 1.2rem;
+            color: var(--text-main);
+            border-bottom: 2px solid var(--primary);
+            padding-bottom: 8px;
+            display: inline-block;
+        }
+
+        .data-group {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        .data-row span:last-child {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            font-size: 1.3rem;
+            /* Match data table size */
+        }
+
+        .control-group span {
+            font-weight: 500;
+            /* Match table weight */
+        }
+
+        .data-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #444;
+            margin-bottom: 5px;
+        }
+
+        .slider-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Custom Slider Styling */
+        input[type=range] {
+            flex: 1;
+            cursor: pointer;
+            -webkit-appearance: none;
+            /* Remove default styling */
+            appearance: none;
+            background: rgba(0, 0, 0, 0.1);
+            height: 6px;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        /* Webkit (Chrome/Safari) Thumb */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #ffffff;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            margin-top: -9px;
+            /* Centers thumb on the track (height 6px) */
+        }
+
+        /* Thumb Track alignment fix */
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 6px;
+            border-radius: 3px;
+        }
+
+        /* Firefox Thumb */
+        input[type=range]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            background: #ffffff;
+            border: 2px solid var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .value-tag {
+            background: var(--primary);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            min-width: 30px;
+            text-align: center;
+            font-size: 2rem;
+        }
+
+        .formula-box {
+            font-family: 'Courier New', Courier, monospace;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #d63384;
+            text-align: center;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .btn-action:hover {
+            background-color: #357abd;
+            transform: translateY(-1px);
+        }
+
+        .btn-action:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Data Table */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 8px 4px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .data-table th {
+            color: #666;
+            font-weight: 600;
+            width: 50%;
+        }
+
+        .data-table td {
+            color: #333;
+            font-family: 'Courier New', monospace;
+            font-size: 1.45rem;
+            /* Larger font size */
+        }
+
+        .data-table tr:last-child td {
+            font-size: 1.2rem;
+            padding-top: 10px;
+        }
+
+        /* Scene */
+        .scene {
+            width: 100%;
+            height: 100%;
+            perspective: 2500px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .object-container {
+            position: relative;
+            transform-style: preserve-3d;
+            /* No transition for robust sync with JS loop, or use very short one */
+        }
+
+        .face {
+            background-color: var(--paper-color);
+            position: absolute;
+            box-sizing: border-box;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backface-visibility: visible;
+            transform-style: preserve-3d;
+            transition: background-color 0.3s;
+        }
+
+        .face.ghost {
+            background-color: rgba(255, 255, 255, 0.3);
+            border: 2px solid rgba(0, 0, 0, 0.3);
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1;
+        }
+
+        .corner.ghost {
+            background-color: transparent;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1;
+        }
+
+        .corner.ghost.c-tl {
+            border-top: none;
+            border-left: none;
+            border-right: 2px dashed rgba(0, 0, 0, 0.3);
+            border-bottom: 2px dashed rgba(0, 0, 0, 0.3);
+        }
+
+        .corner.ghost.c-tr {
+            border-top: none;
+            border-right: none;
+            border-left: 2px dashed rgba(0, 0, 0, 0.3);
+            border-bottom: 2px dashed rgba(0, 0, 0, 0.3);
+        }
+
+        .corner.ghost.c-bl {
+            border-bottom: none;
+            border-left: none;
+            border-right: 2px dashed rgba(0, 0, 0, 0.3);
+            border-top: 2px dashed rgba(0, 0, 0, 0.3);
+        }
+
+        .corner.ghost.c-br {
+            border-bottom: none;
+            border-right: none;
+            border-left: 2px dashed rgba(0, 0, 0, 0.3);
+            border-top: 2px dashed rgba(0, 0, 0, 0.3);
+        }
+
+        .state-cut .face.ghost,
+        .state-cut .corner.ghost {
+            opacity: 0;
+        }
+
+        .state-folded .face.ghost,
+        .state-folded .corner.ghost {
+            opacity: 1;
+        }
+
+        /* Dynamic Sizes via JS, but base borders here */
+        /* Base Logic: Initially no border (sheet look). In Cut state, dashed (fold lines). */
+        .face.base {
+            transition: border-color 0.3s;
+            border: 2px dashed transparent;
+            /* Prevent style transition artifacts */
+        }
+
+        .face.top {
+            border-top: 2px solid var(--paper-border);
+            transform-origin: bottom;
+        }
+
+        .face.bottom {
+            border-bottom: 2px solid var(--paper-border);
+            transform-origin: top;
+        }
+
+        .face.left {
+            border-left: 2px solid var(--paper-border);
+            transform-origin: right;
+        }
+
+        .face.right {
+            border-right: 2px solid var(--paper-border);
+            transform-origin: left;
+        }
+
+        /* Cut State Borders */
+        /* Base gets dashed borders to represent fold lines */
+        .state-cut .face.base {
+            border: 2px dashed var(--paper-border);
+        }
+
+        /* Flaps show cut edges (sides) as solid, but HINGE side is handled by Base (dashed) */
+        .state-cut .face.top {
+            border-left: 2px solid var(--paper-border);
+            border-right: 2px solid var(--paper-border);
+            border-bottom: none;
+            /* Hinge */
+        }
+
+        .state-cut .face.bottom {
+            border-left: 2px solid var(--paper-border);
+            border-right: 2px solid var(--paper-border);
+            border-top: none;
+            /* Hinge */
+        }
+
+        .state-cut .face.left {
+            border-top: 2px solid var(--paper-border);
+            border-bottom: 2px solid var(--paper-border);
+            border-right: none;
+            /* Hinge */
+        }
+
+        .state-cut .face.right {
+            border-top: 2px solid var(--paper-border);
+            border-bottom: 2px solid var(--paper-border);
+            border-left: none;
+            /* Hinge */
+        }
+
+        /* Folded State: Make borders solid for a complete box look */
+        /* Folded State: Make borders solid and Green as requested */
+        /* Folded State: Custom borders based on occlusion/perspective */
+        /* Folded State: Custom borders based on occlusion/perspective */
+        .state-folded .face.base {
+            /* Left and Top are "internal" creases in this view -> Keep Dashed */
+            border-top: 2px dashed var(--paper-border) !important;
+            border-left: 2px dashed var(--paper-border) !important;
+
+            /* Right and Bottom are moved to the Flaps (Walls) to avoid occlusion */
+            border-bottom: none !important;
+            border-right: none !important;
+        }
+
+        /* Add Green Borders to the HINGES of the standing walls */
+        /* Bottom Face's Top Border is the Hinge connected to Base Bottom */
+        .state-folded .face.bottom {
+            border-top: 2px solid var(--paper-border) !important;
+        }
+
+        /* Right Face's Left Border is the Hinge connected to Base Right */
+        .state-folded .face.right {
+            border-left: 2px solid var(--paper-border) !important;
+        }
+
+        .corner {
+            position: absolute;
+            background-color: var(--corner-color);
+            z-index: 20;
+            transition: opacity 0.3s;
+        }
+
+        .corner.c-tl {
+            border-top: 2px solid var(--paper-border);
+            border-left: 2px solid var(--paper-border);
+            border-right: 2px dashed var(--paper-border);
+            border-bottom: 2px dashed var(--paper-border);
+        }
+
+        .corner.c-tr {
+            border-top: 2px solid var(--paper-border);
+            border-right: 2px solid var(--paper-border);
+            border-left: 2px dashed var(--paper-border);
+            border-bottom: 2px dashed var(--paper-border);
+        }
+
+        .corner.c-bl {
+            border-bottom: 2px solid var(--paper-border);
+            border-left: 2px solid var(--paper-border);
+            border-right: 2px dashed var(--paper-border);
+            border-top: 2px dashed var(--paper-border);
+        }
+
+        .corner.c-br {
+            border-bottom: 2px solid var(--paper-border);
+            border-right: 2px solid var(--paper-border);
+            border-left: 2px dashed var(--paper-border);
+            border-top: 2px dashed var(--paper-border);
+        }
+
+        .state-cut .corner {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Labels */
+        .label-text {
+            position: absolute;
+            font-size: 1.2rem;
+            color: var(--text-main);
+            white-space: nowrap;
+            font-family: 'Times New Roman', serif;
+            pointer-events: none;
+        }
+
+        /* Specific Label Positions */
+        .lbl-outer-w {
+            width: 100%;
+            text-align: center;
+            top: 100%;
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .lbl-outer-h {
+            left: 0;
+            top: 50%;
+            transform: translate(-100%, -50%) rotate(-90deg);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .lbl-new-w {
+            width: 100%;
+            text-align: center;
+            top: 100%;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+            padding: 10px;
+            /* Increase hit area */
+            cursor: pointer;
+            background: transparent;
+        }
+
+        .lbl-new-h {
+            right: 0;
+            top: 50%;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+            padding: 10px;
+            /* Increase hit area */
+            cursor: pointer;
+            background: transparent;
+        }
+
+        .lbl-height-container {
+            position: absolute;
+            right: 0;
+            transform: translateY(-100%);
+            opacity: 0;
+            transition: opacity 0.2s;
+            pointer-events: none;
+        }
+
+        /* Mouse hover states */
+        .lbl-outer-w:hover,
+        .lbl-outer-h:hover,
+        .lbl-new-w:hover,
+        .lbl-new-h:hover,
+        .lbl-height-container:hover {
+            opacity: 1;
+        }
+
+        .lbl-height {
+            font-size: 1.2rem;
+            /* Increased from 1.1rem to match others */
+            color: #333;
+            transform: rotateX(180deg);
+            transform-origin: bottom right;
+            font-family: 'Times New Roman', serif;
+            /* Match others */
+        }
+
+        /* Settings Button */
+        .settings-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid #ddd;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 200;
+            font-size: 1.2rem;
+            color: #555;
+            transition: transform 0.2s;
+        }
+
+        .settings-btn:hover {
+            transform: rotate(90deg);
+            color: var(--primary);
+        }
+
+        /* Settings Modal */
+        .settings-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            width: 300px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes modalPop {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-row {
+            margin-bottom: 20px;
+        }
+
+        .modal-label {
+            display: block;
+            margin-bottom: 18px;
+            font-weight: 600;
+            color: #444;
+        }
+
+        .modal-input {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #eee;
+            border-radius: 8px;
+            font-size: 1rem;
+            outline: none;
+            box-sizing: border-box;
+            /* Fix for padding box model */
+        }
+
+        .modal-input:focus {
+            border-color: var(--primary);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        /* Settings New Styles */
+        .shape-toggle {
+            display: flex;
+            background: #eee;
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 20px;
+        }
+
+        .shape-btn {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .shape-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            font-weight: 600;
+        }
+
+        .modal-value {
+            float: right;
+            color: var(--primary);
+            font-weight: bold;
+            font-size: 1.4rem;
+        }
+
+        /* Tools & Colors Styling */
+        .drawing-section {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .tools-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 5px;
+        }
+
+        .tool-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: white;
+            border: 1px solid #eee;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            color: #bdc3c7;
+            -webkit-tap-highlight-color: transparent;
+            /* Fix for mobile tap highlight */
+            outline: none;
+        }
+
+        .tool-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            color: var(--primary);
+        }
+
+        .tool-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+            transform: scale(1.1);
+        }
+
+        .colors-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            align-items: center;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 20px;
+        }
+
+        .color-dot {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 0 0 1px #ddd;
+            transition: transform 0.2s, box-shadow 0.2s;
+            position: relative;
+        }
+
+        .color-dot:hover {
+            transform: scale(1.15);
+        }
+
+        .color-dot.active {
+            transform: scale(1.25);
+            box-shadow: 0 0 0 2px var(--primary);
+            z-index: 2;
+        }
+
+        /* Rainbow gradient for custom color */
+        .color-dot.custom-color {
+            background: conic-gradient(from 0deg, red, yellow, lime, cyan, blue, magenta, red);
+            overflow: hidden;
+        }
+
+        .color-dot input[type=color] {
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .btn-clear {
+            width: 100%;
+            padding: 10px;
+            background: white;
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-clear:hover {
+            background: #fff5f5;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(231, 76, 60, 0.2);
+        }
+
+        #drawingCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            pointer-events: none;
+            touch-action: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Settings Trigger -->
+    <!-- Settings Trigger Removed -->
+
+    <!-- Settings Modal -->
+    <div class="settings-modal" id="settingsModal">
+        <div class="modal-content">
+            <h2 style="margin-top:0; border:none; font-size:1.5rem;">设置尺寸</h2>
+
+            <div class="shape-toggle">
+                <button class="shape-btn active" id="btnRect" onclick="setShapeMode('rect')">长方形</button>
+                <button class="shape-btn" id="btnSquare" onclick="setShapeMode('square')">正方形</button>
+            </div>
+
+            <div class="modal-row" id="rowL">
+                <label class="modal-label"><span id="txtL">长</span> <span id="dispL" class="modal-value">30
+                        cm</span></label>
+                <div class="slider-wrapper">
+                    <input type="range" id="inputL" min="5" max="60" value="30" oninput="updateSettingsUI('L')">
+                </div>
+            </div>
+            <div class="modal-row" id="rowW">
+                <label class="modal-label">宽<span id="dispW" class="modal-value">25 cm</span></label>
+                <div class="slider-wrapper">
+                    <input type="range" id="inputW" min="5" max="60" value="25" oninput="updateSettingsUI('W')">
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-action" style="background:#95a5a6; margin-top:0;"
+                    onclick="closeSettings()">取消</button>
+                <button class="btn-action" style="margin-top:0;" onclick="saveSettings()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="visualization-area">
+        <div class="scene">
+            <div class="object-container" id="boxContainer">
+                <!-- Ghost rectangle -->
+                <div class="face ghost" id="ghostBase"></div>
+                <!-- Corner Ghosts -->
+                <div class="corner ghost c-tl" id="ghostTL"></div>
+                <div class="corner ghost c-tr" id="ghostTR"></div>
+                <div class="corner ghost c-bl" id="ghostBL"></div>
+                <div class="corner ghost c-br" id="ghostBR"></div>
+                <!-- Faces -->
+                <div class="face base" id="faceBase"></div>
+                <div class="face top" id="faceTop"></div>
+                <div class="face bottom" id="faceBottom">
+                    <div class="lbl-height-container" id="lblHeightContainer">
+                        <div class="lbl-height" id="lblHeight">5 cm</div>
+                    </div>
+                </div>
+                <div class="face left" id="faceLeft"></div>
+                <div class="face right" id="faceRight"></div>
+
+                <!-- Corners -->
+                <div class="corner c-tl" id="cornerTL"></div>
+                <div class="corner c-tr" id="cornerTR"></div>
+                <div class="corner c-bl" id="cornerBL"></div>
+                <div class="corner c-br" id="cornerBR"></div>
+
+                <!-- Labels -->
+                <div class="label-text lbl-outer-w" id="lblOuterW">30 cm</div>
+                <div class="label-text lbl-outer-h" id="lblOuterH">25 cm</div>
+                <div class="label-text lbl-new-w" id="lblNewW">20 cm</div>
+                <div class="label-text lbl-new-h" id="lblNewH">15 cm</div>
+            </div>
+        </div>
+        <canvas id="drawingCanvas"></canvas>
+    </div>
+
+    <div class="sidebar">
+
+
+        <div class="data-group control-group">
+
+            <div>
+                <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:25px;">
+                    <span>小正方形边长</span>
+                    <span class="value-tag" id="tagCutSize">5 cm</span>
+                </div>
+                <div class="slider-wrapper">
+                    <span>1</span>
+                    <input type="range" id="sliderCutSize" min="1" max="12" step="1" value="5">
+                    <span>12</span>
+                </div>
+            </div>
+
+            <div id="foldControlGroup"
+                style="opacity:0.5; pointer-events:none; transition:opacity 0.3s; margin-top:10px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                    <span>折叠</span>
+
+                </div>
+                <div class="slider-wrapper">
+                    <span>0°</span>
+                    <input type="range" id="sliderFold" min="0" max="90" value="0" disabled>
+                    <span>90°</span>
+                </div>
+            </div>
+
+
+
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
+                <button id="btnCut" class="btn-action" style="margin-top:0;" onclick="toggleCut()">剪切</button>
+                <div style="display:flex; gap:10px;">
+                    <button id="btnReset" class="btn-action" style="flex:1; background-color:#95a5a6; margin-top:0;"
+                        onclick="reset()">重置</button>
+                    <button class="btn-action" style="flex:1; background-color:#7f8c8d; margin-top:0;"
+                        onclick="openSettings()">设置</button>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="data-group control-group">
+
+            <div class="drawing-section">
+                <!-- Data Label Removed from here, placed above -->
+
+                <div class="tools-row">
+                    <button id="toolPointer" class="tool-btn active" title="鼠标/选择"
+                        onclick="setTool('pointer')">🖱️</button>
+                    <button id="toolPen" class="tool-btn" title="手写笔" onclick="setTool('pen')">✏️</button>
+                    <button id="toolLine" class="tool-btn" title="线条" onclick="setTool('line')">📏</button>
+                    <button id="toolEraser" class="tool-btn" title="橡皮 (再次点击清屏)" onclick="setTool('eraser')">🧹</button>
+                </div>
+
+                <div class="colors-row">
+                    <div class="color-dot active" style="background:#ff3b30" onclick="setColor('#ff3b30', this)"></div>
+                    <div class="color-dot" style="background:#ff9500" onclick="setColor('#ff9500', this)"></div>
+                    <div class="color-dot" style="background:#34c759" onclick="setColor('#34c759', this)"></div>
+                    <div class="color-dot custom-color" title="自定义颜色" id="customColorDot">
+                        <input type="color" oninput="setColor(this.value, this.parentNode)">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Constants (Now Mutable)
+        let L = 30; // cm
+        let W = 25; // cm
+        const PPI = 10; // Pixels per CM
+
+        // State
+        let state = {
+            x: 5,
+            foldedDeg: 0,
+            isCut: false,
+            revealedW: false,
+            revealedH: false
+        };
+
+        // DOM Elements
+        const els = {
+            container: document.getElementById('boxContainer'),
+            base: document.getElementById('faceBase'),
+            ghostBase: document.getElementById('ghostBase'),
+            // Corner Ghosts
+            ghostTL: document.getElementById('ghostTL'),
+            ghostTR: document.getElementById('ghostTR'),
+            ghostBL: document.getElementById('ghostBL'),
+            ghostBR: document.getElementById('ghostBR'),
+            top: document.getElementById('faceTop'),
+            bottom: document.getElementById('faceBottom'),
+            left: document.getElementById('faceLeft'),
+            right: document.getElementById('faceRight'),
+            // Corners
+            cTL: document.getElementById('cornerTL'),
+            cTR: document.getElementById('cornerTR'),
+            cBL: document.getElementById('cornerBL'),
+            cBR: document.getElementById('cornerBR'),
+            // Labels
+            lOutW: document.getElementById('lblOuterW'),
+            lOutH: document.getElementById('lblOuterH'),
+            lNewW: document.getElementById('lblNewW'),
+            lNewH: document.getElementById('lblNewH'),
+            lHeight: document.getElementById('lblHeight'),
+            // Updates
+            tagCutSize: document.getElementById('tagCutSize'),
+
+            // Controls
+            sliderCut: document.getElementById('sliderCutSize'),
+            sliderFold: document.getElementById('sliderFold'),
+            btnCut: document.getElementById('btnCut'),
+            foldGroup: document.getElementById('foldControlGroup'),
+        };
+
+        function init() {
+            renderBox();
+            setupEvents();
+            autoScale();
+            setupDrawing();
+        }
+
+        // Settings Logic
+        const modal = document.getElementById('settingsModal');
+        const inpL = document.getElementById('inputL');
+        const inpW = document.getElementById('inputW');
+        const dispL = document.getElementById('dispL');
+        const dispW = document.getElementById('dispW');
+        const btnRect = document.getElementById('btnRect');
+        const btnSquare = document.getElementById('btnSquare');
+        const rowW = document.getElementById('rowW');
+        const txtL = document.getElementById('txtL');
+
+        let isSquareMode = false;
+
+        function setShapeMode(mode) {
+            isSquareMode = (mode === 'square');
+            if (isSquareMode) {
+                btnSquare.classList.add('active');
+                btnRect.classList.remove('active');
+
+                // Square Mode: Hide Width Row, Sync W to L
+                rowW.style.display = 'none';
+                txtL.innerText = '边长';
+
+                inpW.value = inpL.value;
+                updateSettingsUI('L'); // Sync W to L
+            } else {
+                btnRect.classList.add('active');
+                btnSquare.classList.remove('active');
+
+                // Rect Mode: Show Width Row
+                rowW.style.display = 'block';
+                txtL.innerText = '长 (Length)';
+            }
+        }
+
+        function updateSettingsUI(source) {
+            let valL = parseInt(inpL.value);
+            let valW = parseInt(inpW.value);
+
+            if (isSquareMode) {
+                if (source === 'L') {
+                    inpW.value = valL;
+                    valW = valL;
+                } else {
+                    inpL.value = valW;
+                    valL = valW;
+                }
+            }
+
+            dispL.innerText = valL + ' cm';
+            dispW.innerText = valW + ' cm';
+        }
+
+        function openSettings() {
+            // Populate current values
+            inpL.value = L;
+            inpW.value = W;
+            updateSettingsUI(); // Init text
+            modal.style.display = 'flex';
+        }
+
+        function closeSettings() {
+            modal.style.display = 'none';
+        }
+
+        function saveSettings() {
+            const newL = parseInt(inpL.value);
+            const newW = parseInt(inpW.value);
+
+            if (newL >= 5 && newW >= 5) {
+                L = newL;
+                W = newW;
+
+                // Reset state to avoid weird cuts
+                reset();
+
+                // Update Static Labels
+                els.lOutW.innerText = L + ' cm';
+                els.lOutH.innerText = W + ' cm';
+
+                // Recalculate max cut size (Max cut must be < min(L,W)/2)
+                const maxCut = Math.floor(Math.min(L, W) / 2) - 1;
+                const safeMax = Math.max(1, maxCut);
+                els.sliderCut.max = safeMax;
+                els.sliderCut.nextElementSibling.innerText = safeMax; // Update the span "12" or whatever
+
+                // Update default value if current x is out of bounds
+                if (state.x > safeMax) {
+                    state.x = Math.floor(safeMax / 2) || 1;
+                    els.sliderCut.value = state.x;
+                }
+
+                autoScale();
+                renderBox();
+            }
+            closeSettings();
+        }
+
+        function setupEvents() {
+            // Cut Size Slider
+            // Cut Size Slider
+            els.sliderCut.addEventListener('input', (e) => {
+                // Dragging slider resets the state to start over
+                if (state.isCut) {
+                    reset();
+                }
+                state.x = parseInt(e.target.value);
+                renderBox();
+            });
+
+            // Fold Slider
+            els.sliderFold.addEventListener('input', (e) => {
+                state.foldedDeg = parseInt(e.target.value);
+                renderBox();
+            });
+
+            // Resize
+            window.addEventListener('resize', autoScale);
+
+            // Label Clicks
+            els.lNewW.addEventListener('click', () => {
+                if (state.foldedDeg > 85) {
+                    state.revealedW = !state.revealedW;
+                    renderBox();
+                }
+            });
+            els.lNewH.addEventListener('click', () => {
+                if (state.foldedDeg > 85) {
+                    state.revealedH = !state.revealedH;
+                    renderBox();
+                }
+            });
+        }
+
+        function toggleCut() {
+            if (state.isCut) return; // Currently one-way
+
+            state.isCut = true;
+            document.body.classList.add('state-cut');
+            els.btnCut.textContent = "角落已剪切";
+            els.btnCut.disabled = true;
+
+            // Disable cut slider - CHANGED: Keep enabled to allow reset via drag
+            // els.sliderCut.disabled = true;
+            // els.tagCutSize.style.backgroundColor = '#ccc';
+
+            // Enable fold slider
+            els.foldGroup.style.opacity = '1';
+            els.foldGroup.style.pointerEvents = 'all';
+            els.sliderFold.disabled = false;
+        }
+
+        function reset() {
+            // Reset State
+            state.isCut = false;
+            state.isCut = false;
+            state.foldedDeg = 0;
+            state.revealedW = false;
+            state.revealedH = false;
+
+            // Reset UI Classes
+            document.body.classList.remove('state-cut');
+            document.body.classList.remove('state-folded');
+
+            // Reset Controls
+            els.btnCut.textContent = "剪切";
+            els.btnCut.disabled = false;
+
+            // els.sliderCut.disabled = false; 
+            els.tagCutSize.style.backgroundColor = 'var(--primary)';
+
+            els.sliderFold.value = 0;
+            els.sliderFold.disabled = true;
+            els.foldGroup.style.opacity = '0.5';
+            els.foldGroup.style.pointerEvents = 'none';
+
+            renderBox();
+        }
+
+        function renderBox() {
+            const { x, foldedDeg, isCut } = state;
+            const pxScale = PPI; // 1cm = 10px
+
+            const totalW_px = L * pxScale;
+            const totalH_px = W * pxScale;
+            const x_px = x * pxScale;
+
+            const boxL = L - 2 * x;
+            const boxW = W - 2 * x;
+            const boxH = x;
+
+            const boxL_px = boxL * pxScale;
+            const boxW_px = boxW * pxScale;
+
+            // --- Update UI Data ---
+            els.tagCutSize.innerText = x + ' cm';
+
+            // Logic for labels: Only show "?" if folded > 85 and not revealed
+            if (foldedDeg > 85) {
+                els.lNewW.innerText = state.revealedW ? (boxL + ' cm') : '?';
+                els.lNewH.innerText = state.revealedH ? (boxW + ' cm') : '?';
+
+                // Styles for interactive state
+                els.lNewW.style.pointerEvents = 'auto';
+                els.lNewW.style.cursor = 'pointer';
+                els.lNewW.style.opacity = '1';
+
+                els.lNewH.style.pointerEvents = 'auto';
+                els.lNewH.style.cursor = 'pointer';
+                els.lNewH.style.opacity = '1';
+            } else {
+                // Default behavior (hidden or hover)
+                els.lNewW.innerText = boxL + ' cm';
+                els.lNewH.innerText = boxW + ' cm';
+
+                els.lNewW.style.pointerEvents = 'none';
+                els.lNewW.style.cursor = 'default';
+                els.lNewW.style.opacity = '0'; // Let hover handle it if needed, or hide
+
+                els.lNewH.style.pointerEvents = 'none';
+                els.lNewH.style.cursor = 'default';
+                els.lNewH.style.opacity = '0';
+            }
+
+            els.lHeight.innerText = x + ' cm';
+
+            // Dynamic Label Movement (Gathering effect)
+            // As flaps fold (0->90), the visual edge moves from "Container Edge" to "Base Edge".
+            // Distance to move = x * (1 - cos(rad))? 
+            // Actually, static position is at x from base.
+            // When folded 90deg, position should be 0 from base (visually).
+            // Actually, the label is in the container.
+            // y-pos of bottom edge relative to container bottom = 0 (at 0 deg).
+            // y-pos of projected bottom edge at 90 deg = x (so it moves UP by x).
+            // We want the label to follow the visual edge.
+            const rad = foldedDeg * Math.PI / 180;
+            const contraction = x_px * (1 - Math.cos(rad)) - 10;
+            // Use a larger gap for W as requested (trend is moving away)
+            const contractionW = x_px * (1 - Math.cos(rad));
+
+            // L New W is at bottom. Move plain Y up.
+            els.lNewW.style.transform = `translateY(-${contractionW}px)`;
+
+            // L New H is at right. Base state is rotated -90deg.
+            // We lock the center by setting right position and translating 50%.
+            // right: contraction (distance from container right edge to the fold line).
+            els.lNewH.style.right = contraction + 'px';
+            els.lNewH.style.left = 'auto'; // Ensure left doesn't interfere
+            els.lNewH.style.transform = `translate(65%, -50%) rotate(-90deg)`;
+
+
+
+            // --- Update Geometry ---
+
+            // Container size maps to total sheet size 
+            els.container.style.width = totalW_px + 'px';
+            els.container.style.height = totalH_px + 'px';
+
+            // Base (Center)
+            // Top/Left relative to container
+            els.base.style.width = boxL_px + 'px';
+            els.base.style.height = boxW_px + 'px';
+            els.base.style.left = x_px + 'px';
+            els.base.style.top = x_px + 'px';
+
+            // Ghost Base (Shows original size when folded)
+            els.ghostBase.style.width = totalW_px + 'px';
+            els.ghostBase.style.height = totalH_px + 'px';
+            els.ghostBase.style.left = '0px';
+            els.ghostBase.style.top = '0px';
+
+            // Corner Ghosts (Shows cut squares with dashed lines)
+            els.ghostTL.style.width = x_px + 'px';
+            els.ghostTL.style.height = x_px + 'px';
+            els.ghostTL.style.left = '0px';
+            els.ghostTL.style.top = '0px';
+
+            els.ghostTR.style.width = x_px + 'px';
+            els.ghostTR.style.height = x_px + 'px';
+            els.ghostTR.style.right = '0px';
+            els.ghostTR.style.top = '0px';
+
+            els.ghostBL.style.width = x_px + 'px';
+            els.ghostBL.style.height = x_px + 'px';
+            els.ghostBL.style.left = '0px';
+            els.ghostBL.style.bottom = '0px';
+
+            els.ghostBR.style.width = x_px + 'px';
+            els.ghostBR.style.height = x_px + 'px';
+            els.ghostBR.style.right = '0px';
+            els.ghostBR.style.bottom = '0px';
+
+            // Ensure original labels are visible when folded
+            if (foldedDeg > 0) {
+                els.lOutW.style.opacity = '1';
+                els.lOutH.style.opacity = '1';
+            } else if (!isCut) {
+                els.lOutW.style.opacity = '1';
+                els.lOutH.style.opacity = '1';
+            } else {
+                els.lOutW.style.opacity = '0';
+                els.lOutH.style.opacity = '0';
+            }
+
+            // Flaps
+            // Top
+            els.top.style.width = boxL_px + 'px';
+            els.top.style.height = x_px + 'px';
+            els.top.style.left = x_px + 'px';
+            els.top.style.top = '0px';
+
+            // Bottom
+            els.bottom.style.width = boxL_px + 'px';
+            els.bottom.style.height = x_px + 'px';
+            els.bottom.style.left = x_px + 'px';
+            els.bottom.style.top = (totalH_px - x_px) + 'px';
+
+            // Left
+            els.left.style.width = x_px + 'px';
+            els.left.style.height = boxW_px + 'px';
+            els.left.style.left = '0px';
+            els.left.style.top = x_px + 'px';
+
+            // Right
+            els.right.style.width = x_px + 'px';
+            els.right.style.height = boxW_px + 'px';
+            els.right.style.left = (totalW_px - x_px) + 'px';
+            els.right.style.top = x_px + 'px';
+
+            // Corners
+            // TL
+            els.cTL.style.width = x_px + 'px';
+            els.cTL.style.height = x_px + 'px';
+            els.cTL.style.left = '0px';
+            els.cTL.style.top = '0px';
+            // TR
+            els.cTR.style.width = x_px + 'px';
+            els.cTR.style.height = x_px + 'px';
+            els.cTR.style.right = '0px';
+            els.cTR.style.top = '0px';
+            // BL
+            els.cBL.style.width = x_px + 'px';
+            els.cBL.style.height = x_px + 'px';
+            els.cBL.style.left = '0px';
+            els.cBL.style.bottom = '0px';
+            // BR
+            els.cBR.style.width = x_px + 'px';
+            els.cBR.style.height = x_px + 'px';
+            els.cBR.style.right = '0px';
+            els.cBR.style.bottom = '0px';
+
+            // --- 3D Transforms ---
+
+            // Flap rotation
+            els.top.style.transform = `rotateX(-${foldedDeg}deg)`;
+            els.bottom.style.transform = `rotateX(${foldedDeg}deg)`;
+            els.left.style.transform = `rotateY(${foldedDeg}deg)`;
+            els.right.style.transform = `rotateY(-${foldedDeg}deg)`;
+
+            // Global Scene Rotation
+            // Tweak the logic so it looks good at 0 and at 90
+            const progress = foldedDeg / 90;
+            const tiltX = progress * 60; // 0 -> 60
+            const tiltZ = progress * 30; // 0 -> 30
+            // Apply scale
+            const currentScale = window.currentScale || 1;
+
+            // When folded, we tilt the whole box to see inside/volume
+            els.container.style.transform = `scale(${currentScale}) rotateX(${tiltX}deg) rotateZ(${tiltZ}deg)`;
+
+            if (foldedDeg > 85) {
+                document.body.classList.add('state-folded');
+            } else {
+                document.body.classList.remove('state-folded');
+            }
+        }
+
+        function autoScale() {
+            const margin = 50;
+            // Available space in visualization area
+            const area = document.querySelector('.visualization-area');
+            const availW = area.clientWidth;
+            const availH = area.clientHeight;
+
+            // Target size depends on L/W
+            // L cm * 10 PPI = px width. 
+            // We add ~10cm (100px) padding for labels/rotation ease
+            const dynamicW = (L + 10) * PPI;
+            const dynamicH = (W + 10) * PPI;
+
+            // Ensure min size so small boxes aren't tiny
+            const baseW = Math.max(400, dynamicW);
+            const baseH = Math.max(400, dynamicH);
+
+            const scale = Math.min((availW - margin) / baseW, (availH - margin) / baseH);
+            window.currentScale = Math.max(0.3, Math.min(scale, 1.5)); // Allow smaller scale 0.3
+            renderBox();
+        }
+
+        // Init
+        // Drawing Logic
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        let drawer = {
+            isDrawing: false,
+            tool: 'pointer', // pointer, pen, line, eraser
+            color: '#ff3b30',
+            startX: 0,
+            startY: 0,
+            snapshot: null
+        };
+
+        function setupDrawing() {
+            // Initial Size
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            // Events
+            canvas.addEventListener('mousedown', startDraw);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDraw);
+            canvas.addEventListener('mouseout', stopDraw);
+
+            // Touch support
+            canvas.addEventListener('touchstart', (e) => {
+                if (drawer.tool !== 'pointer') e.preventDefault();
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent("mousedown", {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                canvas.dispatchEvent(mouseEvent);
+            }, { passive: false });
+
+            canvas.addEventListener('touchmove', (e) => {
+                if (drawer.tool !== 'pointer') e.preventDefault();
+                const touch = e.touches[0];
+                const mouseEvent = new MouseEvent("mousemove", {
+                    clientX: touch.clientX,
+                    clientY: touch.clientY
+                });
+                canvas.dispatchEvent(mouseEvent);
+            }, { passive: false });
+
+            canvas.addEventListener('touchend', () => {
+                const mouseEvent = new MouseEvent("mouseup", {});
+                canvas.dispatchEvent(mouseEvent);
+            });
+        }
+
+        function resizeCanvas() {
+            // Make canvas resolution match display size
+            canvas.width = canvas.parentElement.clientWidth;
+            canvas.height = canvas.parentElement.clientHeight;
+        }
+
+        function setTool(tool) {
+            // Special handling for Eraser: Click again to clear
+            if (tool === 'eraser' && drawer.tool === 'eraser') {
+                clearCanvas();
+                return;
+            }
+
+            drawer.tool = tool;
+
+            // UI Updates
+            const buttons = ['toolPointer', 'toolPen', 'toolLine', 'toolEraser'];
+            buttons.forEach(id => {
+                const btn = document.getElementById(id);
+                if (id === 'tool' + tool.charAt(0).toUpperCase() + tool.slice(1)) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Pointer Events
+            if (tool === 'pointer') {
+                canvas.style.pointerEvents = 'none';
+            } else {
+                canvas.style.pointerEvents = 'auto';
+            }
+        }
+
+        function setColor(color, btn) {
+            drawer.color = color;
+
+            // Update UI Icons
+            document.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+            // If btn is passed, highlight it. 
+            // If btn is the custom color wrapper (parentNode), highlight it.
+            if (btn) btn.classList.add('active');
+        }
+
+        function startDraw(e) {
+            if (drawer.tool === 'pointer') return;
+
+            drawer.isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            drawer.startX = e.clientX - rect.left;
+            drawer.startY = e.clientY - rect.top;
+
+            ctx.lineWidth = (drawer.tool === 'eraser') ? 20 : 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            if (drawer.tool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = drawer.color;
+            }
+
+            ctx.beginPath();
+
+            if (drawer.tool === 'pen' || drawer.tool === 'eraser') {
+                ctx.moveTo(drawer.startX, drawer.startY);
+            } else if (drawer.tool === 'line') {
+                drawer.snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        function draw(e) {
+            if (!drawer.isDrawing) return;
+
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            if (drawer.tool === 'pen' || drawer.tool === 'eraser') {
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            } else if (drawer.tool === 'line') {
+                ctx.putImageData(drawer.snapshot, 0, 0);
+                ctx.beginPath();
+                ctx.moveTo(drawer.startX, drawer.startY);
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+        }
+
+        function stopDraw() {
+            if (drawer.isDrawing) {
+                drawer.isDrawing = false;
+                ctx.closePath();
+            }
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        window.onload = init;
+
+    </script>
+</body>
+
+</html>

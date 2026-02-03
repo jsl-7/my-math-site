@@ -1,0 +1,1674 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>围正方体 Pro</title>
+    <style>
+        :root {
+            /* 基础变量 */
+            --primary-color: #2196f3;
+            --accent-color: #ff5252;
+            --bg-color: #f0f2f5;
+            --panel-bg: rgba(255, 255, 255, 0.6);
+
+            /* 动态计算 - JS会更新这些值 */
+            --cell-size: 60px;
+            --grid-gap: 2px;
+
+            /* 颜色定义 */
+            --cell-normal: #ffffff;
+            --cell-selected: #2196f3;
+            --cell-fixed: #ff5252;
+            --text-main: #333333;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--bg-color);
+            background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text-main);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden;
+            display: flex;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        /* --- 舞台区域 --- */
+        #stage {
+            flex: 1;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 40px;
+            /* Add gap between scene and sidebar */
+            background: transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* --- 右侧控制栏 --- */
+        #sidebar-right {
+            /* Removed absolute positioning */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 25px;
+            /* 组间距 */
+            z-index: 20;
+            width: 200px;
+            /* 加宽以容纳两列 */
+            flex-direction: row;
+            /* 水平排列：左边滑块，右边按钮 */
+            align-items: center;
+            justify-content: space-evenly;
+            pointer-events: auto;
+        }
+
+        /* 移动端侧边栏背景 */
+        @media (max-width: 600px) {
+            #sidebar-right {
+                width: 100px;
+                border-left: 1px solid rgba(255, 255, 255, 0.3);
+                pointer-events: auto;
+                justify-content: center;
+                padding-bottom: 80px;
+            }
+        }
+
+        /* 按钮组容器 */
+        .btn-group {
+            pointer-events: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            padding: 5px;
+            justify-content: center;
+        }
+
+        /* --- 1. 折叠控制区 (UI重构) --- */
+        .fold-control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px;
+            /* 控件间距 */
+            background: transparent;
+            pointer-events: auto;
+            /* 确保可点击 */
+            justify-content: center;
+        }
+
+        /* 单独的滑动条背景条 (容器) */
+        .slider-track-bg {
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50px;
+            width: 44px;
+            height: 160px;
+            /* 显式高度 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+            /* 防止溢出裁剪 */
+            overflow: visible;
+        }
+
+        /* 垂直滑条样式优化 - 使用标准CSS实现 */
+        input[type=range] {
+            -webkit-appearance: none;
+            /* 清除默认样式 */
+            appearance: none;
+            width: 140px;
+            /* 这里是长度 */
+            height: 44px;
+            /* 这里是触摸宽度 */
+            background: transparent;
+            cursor: pointer;
+            outline: none;
+            margin: 0;
+            /* 旋转90度：左(0)变上，右(100)变下 */
+            transform: rotate(90deg);
+            transform-origin: center;
+        }
+
+        /* 滑块轨道 (Webkit) */
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+            border: none;
+        }
+
+        /* 滑块按钮 (Webkit) */
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 28px;
+            width: 28px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            /* 垂直居中修正： (轨道高度 - 滑块高度) / 2 */
+            margin-top: -11px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        /* Firefox 兼容 */
+        input[type=range]::-moz-range-track {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+            border: none;
+        }
+
+        input[type=range]::-moz-range-thumb {
+            height: 28px;
+            width: 28px;
+            border-radius: 50%;
+            background: #fff;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+
+        /* 圆形折叠/展开按钮 */
+        .fold-quick-btn {
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            /* 圆形 */
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(5px);
+            font-size: 14px;
+            color: #555;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fold-quick-btn:active:not(:disabled) {
+            transform: scale(0.95);
+            background: #fff;
+        }
+
+        .fold-quick-btn:disabled {
+            opacity: 0.4;
+            box-shadow: none;
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* --- 2. 玻璃质感功能按钮 --- */
+        .btn {
+            width: 64px;
+            height: 64px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.55);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow:
+                0 4px 6px -1px rgba(0, 0, 0, 0.05),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+            border-radius: 18px;
+            color: #555;
+            font-size: 12px;
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s;
+        }
+
+        .btn svg {
+            width: 26px;
+            height: 26px;
+            margin-bottom: 5px;
+            fill: currentColor;
+            opacity: 0.8;
+        }
+
+        .btn:active {
+            transform: scale(0.96);
+            background: rgba(255, 255, 255, 0.85);
+        }
+
+        .btn.active {
+            background: rgba(33, 150, 243, 0.85);
+            color: white;
+            border: 1px solid rgba(33, 150, 243, 0.2);
+            box-shadow: 0 8px 16px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn.active svg {
+            opacity: 1;
+        }
+
+        .btn.active#fixFaceBtn {
+            background: rgba(255, 82, 82, 0.85);
+            border-color: rgba(255, 82, 82, 0.2);
+            box-shadow: 0 8px 16px rgba(255, 82, 82, 0.3);
+        }
+
+        /* Front Fixed Face Theme (Green) */
+        .btn.active#fixFaceBtn.front-mode {
+            background: rgba(76, 175, 80, 0.85);
+            border-color: rgba(76, 175, 80, 0.2);
+            box-shadow: 0 8px 16px rgba(76, 175, 80, 0.3);
+        }
+
+        .btn.disabled {
+            opacity: 0.5;
+            filter: grayscale(0.8);
+            pointer-events: none;
+            background: rgba(255, 255, 255, 0.3);
+            box-shadow: none;
+        }
+
+        /* --- 3. 右下角清空按钮 (淡橙色) --- */
+        #resetBtn {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 30;
+            width: 54px;
+            height: 54px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 15px;
+            /* 淡橙色主题 */
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: normal;
+            opacity: 0.5;
+        }
+
+        #resetBtn:active {
+            background: #fff;
+            opacity: 0.8;
+        }
+
+        /* --- 网格与方块样式 --- */
+        .scene {
+            position: relative;
+            width: calc(5 * var(--cell-size) + 4 * var(--grid-gap));
+            height: calc(5 * var(--cell-size) + 4 * var(--grid-gap));
+            perspective: 2000px;
+            transform-style: preserve-3d;
+            transform-origin: center center;
+        }
+
+        .grid-layer {
+            display: grid;
+            grid-template-columns: repeat(5, var(--cell-size));
+            grid-template-rows: repeat(5, var(--cell-size));
+            gap: var(--grid-gap);
+            padding: var(--grid-gap);
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(2px);
+            border-radius: 12px;
+            transition: opacity 0.3s;
+            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.6);
+        }
+
+        .cell {
+            background-color: var(--cell-normal);
+            border-radius: 6px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .cell.selected {
+            background-color: var(--cell-selected);
+            box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3);
+        }
+
+        .cell.fixed-root {
+            background-color: var(--cell-fixed) !important;
+            box-shadow: 0 4px 10px rgba(255, 82, 82, 0.3);
+        }
+
+        .cell.fixed-root.fixed-front {
+            background-color: #4caf50 !important;
+            /* Green for Front */
+            box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+        }
+
+        /* 标记字符样式：加大字号 */
+        .cell-symbol {
+            pointer-events: none;
+            font-size: calc(var(--cell-size) * 0.75);
+            /* Adaptive size */
+            font-weight: 800;
+            color: #fff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            font-family: "Arial Rounded MT Bold", sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+        }
+
+        .picking-root .cell.selected:not(.fixed-root) {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+
+            100% {
+                opacity: 1;
+            }
+        }
+
+        /* 3D 正方体层 */
+        .cube-layer {
+            position: absolute;
+            top: var(--grid-gap);
+            left: var(--grid-gap);
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: none;
+            transform-style: preserve-3d;
+        }
+
+        .cube-layer.manual-rotate {
+            pointer-events: auto;
+            cursor: grab;
+        }
+
+        .cube-face {
+            position: absolute;
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: rgba(33, 150, 243, 0.9);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            backface-visibility: visible;
+            transform-style: preserve-3d;
+        }
+
+        .cube-face.is-fixed {
+            background-color: rgba(255, 82, 82, 0.9);
+        }
+
+        /* Unified Color Scheme: Pink(Top/Bottom), Green(Front/Back), Yellow(Left/Right) */
+        .cube-face.is-fixed.fixed-front,
+        .cube-face.is-fixed.fixed-back {
+            background-color: rgba(76, 175, 80, 0.9);
+            /* Green */
+            color: #fff;
+        }
+
+        .cube-face.is-fixed.fixed-top,
+        .cube-face.is-fixed.fixed-bottom {
+            background-color: rgba(237, 132, 181, 0.9);
+            /* Pink #ed84b5 */
+            color: #fff;
+        }
+
+        .cube-face.is-fixed.fixed-left,
+        .cube-face.is-fixed.fixed-right {
+            background-color: rgba(253, 216, 53, 0.9);
+            /* Yellow #fdd835 */
+            color: #333;
+        }
+
+        .cell.fixed-root.fixed-top,
+        .cell.fixed-root.fixed-bottom {
+            background-color: #ed84b5 !important;
+            color: #fff;
+        }
+
+        .cell.fixed-root.fixed-front,
+        .cell.fixed-root.fixed-back {
+            background-color: #4caf50 !important;
+            color: #fff;
+        }
+
+        .cell.fixed-root.fixed-left,
+        .cell.fixed-root.fixed-right {
+            background-color: #fdd835 !important;
+            color: #333;
+        }
+
+        /* --- 标记弹窗 (3列 + 颜色) --- */
+        .symbol-popup {
+            position: fixed;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            padding: 15px;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            z-index: 200;
+            display: none;
+            flex-direction: column;
+            gap: 15px;
+            width: 200px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        .symbol-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .color-row {
+            display: flex;
+            justify-content: space-around;
+            padding-top: 5px;
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .color-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+
+        .color-btn:active {
+            transform: scale(0.9);
+        }
+
+        .color-btn.active {
+            border-color: #333;
+            transform: scale(1.1);
+        }
+
+        .symbol-popup.show {
+            display: flex;
+        }
+
+        .symbol-btn {
+            width: 42px;
+            height: 42px;
+            background: #fff;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #333;
+            font-size: 18px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .symbol-btn:active {
+            background: #e3f2fd;
+            color: #2196f3;
+            transform: scale(0.95);
+            filter: brightness(0.95);
+        }
+
+        /* 已使用的样式 - 不再禁用，而是给一个视觉提示 */
+        .symbol-btn.used {
+            background: #e0e0e0;
+            color: #999;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 当前选中格子的符号 */
+        .symbol-btn.current {
+            background: #2196f3;
+            color: white;
+            box-shadow: 0 2px 5px rgba(33, 150, 243, 0.4);
+        }
+
+        #toast {
+            position: fixed;
+            top: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(50, 50, 50, 0.85);
+            backdrop-filter: blur(5px);
+            color: white;
+            padding: 10px 24px;
+            border-radius: 24px;
+            font-size: 14px;
+            font-weight: 500;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+            z-index: 100;
+        }
+
+        #toast.show {
+            opacity: 1;
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 199;
+            background: rgba(0, 0, 0, 0.05);
+            display: none;
+        }
+
+        .overlay.show {
+            display: block;
+        }
+
+        /* --- 响应式布局优化 (新) --- */
+
+        /* 窄屏/移动端：底部栏 2行显示 */
+        body.layout-bottom {
+            flex-direction: column;
+        }
+
+        body.layout-bottom #sidebar-right {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            top: auto;
+            width: 100%;
+            height: auto;
+            /* 自动高度 */
+            min-height: 140px;
+            /* 容纳两行 */
+            flex-direction: column;
+            /* 垂直排列：上行滑块，下行按钮 */
+            padding: 15px;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        body.layout-bottom .fold-control-group {
+            flex-direction: row;
+            width: 100%;
+            justify-content: center;
+        }
+
+        body.layout-bottom .btn-group {
+            flex-direction: row;
+            width: 100%;
+            justify-content: center;
+        }
+
+        body.layout-bottom .slider-track-bg {
+            width: 220px;
+            height: 44px;
+        }
+
+        body.layout-bottom input[type=range] {
+            transform: none;
+            width: 200px;
+            height: 44px;
+            margin: 0;
+        }
+
+        body.layout-bottom #resetBtn {
+            top: 20px;
+            /* 避开加高的底部栏 */
+            right: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- 舞台区 -->
+    <div id="stage">
+        <div class="scene">
+            <div class="grid-layer" id="grid"></div>
+            <div class="cube-layer" id="cubeWrapper"></div>
+        </div>
+
+        <!-- 右侧控制栏 -->
+        <aside id="sidebar-right">
+            <!-- 组1：折叠控制 (分离式UI) -->
+            <div class="fold-control-group">
+                <button class="fold-quick-btn" id="unfoldBtn" onclick="quickUnfold()" disabled>展开</button>
+                <div class="slider-track-bg">
+                    <input type="range" id="foldSlider" min="0" max="100" value="0" disabled>
+                </div>
+                <button class="fold-quick-btn" id="foldBtn" onclick="quickFold()" disabled>折叠</button>
+            </div>
+
+            <!-- 组2：功能按钮 -->
+            <div class="btn-group">
+                <button id="fixFaceBtn" class="btn disabled" onclick="toggleFixMode()">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M16,12V4H17V2H7V4H8V12L6,14V16H11.2V22H12.8V16H18V14L16,12Z" />
+                    </svg>
+                    <span>固定面</span>
+                </button>
+
+                <button id="markBtn" class="btn disabled" onclick="toggleMarkMode()">
+                    <svg viewBox="0 0 24 24">
+                        <path
+                            d="M3,17.25V21H6.75L17.81,9.94L14.06,6.19L3,17.25M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04Z" />
+                    </svg>
+                    <span>标记</span>
+                </button>
+            </div>
+        </aside>
+    </div>
+
+    <!-- 右下角清空 -->
+    <button id="resetBtn" class="btn" onclick="resetGrid()">重置</button>
+
+    <!-- 弹窗组件 -->
+    <div id="toast">提示信息</div>
+    <div class="overlay" id="overlay"></div>
+    <div id="markPopup" class="symbol-popup">
+        <div class="symbol-grid" id="symbolGrid"></div>
+        <div class="color-row" id="colorRow">
+            <div class="color-btn" style="background:#ed84b5" onclick="applyColor('#ed84b5')"></div>
+            <div class="color-btn" style="background:#4caf50" onclick="applyColor('#4caf50')"></div>
+            <div class="color-btn" style="background:#fdd835" onclick="applyColor('#fdd835')"></div>
+        </div>
+    </div>
+
+    <!-- 固定面设置弹窗 -->
+    <div id="fixFacePopup" class="symbol-popup">
+        <div class="symbol-grid">
+            <div class="symbol-btn" style="background-color: #ed84b5; color: #fff;" onclick="setFixedFaceType('top')">上
+            </div>
+            <div class="symbol-btn" style="background-color: #4caf50; color: #fff;" onclick="setFixedFaceType('front')">
+                前</div>
+            <div class="symbol-btn" style="background-color: #fdd835; color: #333;" onclick="setFixedFaceType('left')">左
+            </div>
+            <div class="symbol-btn" style="background-color: #ed84b5; color: #fff;"
+                onclick="setFixedFaceType('bottom')">下</div>
+            <div class="symbol-btn" style="background-color: #4caf50; color: #fff;" onclick="setFixedFaceType('back')">后
+            </div>
+            <div class="symbol-btn" style="background-color: #fdd835; color: #333;" onclick="setFixedFaceType('right')">
+                右</div>
+        </div>
+    </div>
+
+    <script>
+        // --- 核心状态 ---
+        const GRID_SIZE = 5;
+        const MAX_SELECT = 6;
+        let selectedCells = [];
+        let fixedRootIndex = -1;
+        let fixedFaceType = 'back'; // 'back' or 'front'
+        let isPickingRoot = false;
+        let isMarking = false;
+        let isFolded = false;
+
+        // --- DOM 元素 ---
+        const gridEl = document.getElementById('grid');
+        const cubeWrapper = document.getElementById('cubeWrapper');
+        const stageEl = document.getElementById('stage');
+        const toastEl = document.getElementById('toast');
+        const fixBtn = document.getElementById('fixFaceBtn');
+        const markBtn = document.getElementById('markBtn');
+        const foldSlider = document.getElementById('foldSlider');
+        const unfoldBtn = document.getElementById('unfoldBtn');
+        const foldBtn = document.getElementById('foldBtn');
+
+        const markPopup = document.getElementById('markPopup');
+        const fixFacePopup = document.getElementById('fixFacePopup');
+        const overlay = document.getElementById('overlay');
+        const symbolGrid = document.getElementById('symbolGrid');
+
+        function init() {
+            createGrid();
+            initPopup();
+            resizeLayout();
+            window.addEventListener('resize', resizeLayout);
+            setupInteractions();
+        }
+
+        // 1. 动态布局计算
+        // 1. 动态布局计算 (最大化利用屏幕，窄屏自动切换底部栏)
+        function resizeLayout() {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+
+            // 阈值：宽度小于800视为窄屏模式
+            const isNarrow = w < 800;
+
+            document.body.classList.toggle('layout-bottom', isNarrow);
+
+            let safeW, safeH;
+
+            if (isNarrow) {
+                // 底部栏模式: 2行高度 (约160px)
+                const barH = 160;
+                safeW = w;
+                safeH = h - barH;
+                // stageEl.style.paddingRight = '0'; // padding removed
+            } else {
+                // 侧边栏模式: 宽度约200px
+                const barW = 200;
+                safeW = w - barW;
+                safeH = h;
+                // stageEl.style.paddingRight = `${barW}px`; // padding removed as sidebar is now in flow
+            }
+
+            // 2.窄屏下充分利用宽和高 - 大幅减小留白
+            const padding = isNarrow ? 20 : 100;
+
+            // 移除 500 的限制，取可用宽高的较小值
+            const maxBoardSize = Math.min(safeW, safeH) - padding * 2;
+
+            // 确保不小于200
+            const finalSize = Math.max(200, maxBoardSize);
+
+            const cellUnit = finalSize / (5 + 4 * 0.05);
+            const gapUnit = 2; // 固定像素
+            const exactCellSize = (finalSize - 4 * gapUnit) / 5;
+
+            document.documentElement.style.setProperty('--cell-size', `${exactCellSize}px`);
+            document.documentElement.style.setProperty('--grid-gap', `${gapUnit}px`);
+        }
+
+        // 2. 网格生成
+        function createGrid() {
+            gridEl.innerHTML = '';
+            selectedCells = [];
+            fixedRootIndex = -1;
+            fixedFaceType = 'back';
+            isPickingRoot = false;
+            isMarking = false;
+            isFolded = false;
+            foldSlider.value = 0;
+
+            updateUIState();
+
+            for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    cell.dataset.index = r * GRID_SIZE + c;
+                    gridEl.appendChild(cell);
+                }
+            }
+            gridEl.style.opacity = '1';
+            cubeWrapper.style.display = 'none';
+        }
+
+        // 3. 交互处理
+        function setupInteractions() {
+            gridEl.addEventListener('mousedown', handlePointerStart);
+            window.addEventListener('mouseup', () => { isPointerDown = false; lastTouchedCell = null; });
+
+            gridEl.addEventListener('touchstart', handlePointerStart, { passive: false });
+            gridEl.addEventListener('touchmove', handlePointerMove, { passive: false });
+            gridEl.addEventListener('touchend', handlePointerEnd);
+            gridEl.addEventListener('mouseup', handlePointerEnd);
+        }
+
+        let isPointerDown = false;
+        let lastTouchedCell = null;
+
+        function handlePointerEnd(e) {
+            // 处理 3D模式下的点击退出
+            if (isFolded && isPointerDown && !isDragging3D && foldSlider.value == 0) {
+                // 只有在没有发生明显拖动（旋转）的情况下，才视为点击退出
+                exit3DMode();
+            }
+            isPointerDown = false;
+            lastTouchedCell = null;
+        }
+
+        function handlePointerStart(e) {
+            if (e.type === 'touchstart') e.preventDefault();
+
+            // 3D模式下：如果是拖动则旋转，如果是点击且在0位置则退出
+            if (isFolded) {
+                // 不在这里直接return，改为记录状态，由Move/End判断
+                // 但要阻止后续的 "processCellInteraction" 立即执行
+                // 我们在 handlePointerEnd 里单独处理 3D模式下的点击退出
+                isPointerDown = true;
+                interactionStartX = e.touches ? e.touches[0].clientX : e.clientX;
+                interactionStartY = e.touches ? e.touches[0].clientY : e.clientY;
+                isDragging3D = false;
+                return;
+            }
+
+            isPointerDown = true;
+            const cell = getTargetCell(e);
+
+            if (cell) {
+                processCellInteraction(cell);
+                lastTouchedCell = cell;
+            }
+        }
+
+        let interactionStartX = 0;
+        let interactionStartY = 0;
+        let isDragging3D = false;
+
+        function handlePointerMove(e) {
+            if (!isPointerDown) return;
+            if (e.type === 'touchmove') e.preventDefault();
+
+            if (isFolded) {
+                const cx = e.touches ? e.touches[0].clientX : e.clientX;
+                const cy = e.touches ? e.touches[0].clientY : e.clientY;
+                if (Math.abs(cx - interactionStartX) > 5 || Math.abs(cy - interactionStartY) > 5) {
+                    isDragging3D = true;
+                }
+                return;
+            }
+
+            if (isMarking || isPickingRoot) return;
+
+            const cell = getTargetCell(e);
+            if (cell && cell !== lastTouchedCell) {
+                processCellInteraction(cell);
+                lastTouchedCell = cell;
+            }
+        }
+
+        function getTargetCell(e) {
+            let target;
+            if (e.changedTouches) {
+                const t = e.changedTouches[0];
+                target = document.elementFromPoint(t.clientX, t.clientY);
+            } else {
+                target = e.target;
+            }
+            return target ? target.closest('.cell') : null;
+        }
+
+        function processCellInteraction(cell) {
+            if (isFolded) {
+                if (foldSlider.value == 0) exit3DMode();
+                else return;
+            }
+
+            const index = parseInt(cell.dataset.index);
+            const r = parseInt(cell.dataset.r);
+            const c = parseInt(cell.dataset.c);
+
+            // 模式A: 标记
+            if (isMarking) {
+                handleMarkingInteraction(index, cell);
+                return;
+            }
+
+            // 模式B: 选底面
+            if (isPickingRoot) {
+                handlePickingRootInteraction(index);
+                return;
+            }
+
+            // 模式C: 普通选择
+            const existingIndex = selectedCells.findIndex(item => item.index === index);
+            if (existingIndex !== -1) {
+                selectedCells.splice(existingIndex, 1);
+                cell.classList.remove('selected', 'fixed-root');
+                cell.innerHTML = '';
+                if (index === fixedRootIndex) fixedRootIndex = -1;
+            } else {
+                if (selectedCells.length >= MAX_SELECT) {
+                    showToast("最多选择6个方格");
+                    return;
+                }
+                selectedCells.push({ r, c, index, el: cell, symbol: '', color: '' });
+                cell.classList.add('selected');
+            }
+            updateUIState();
+        }
+
+        // --- 功能函数 ---
+
+        let pendingFixedIndex = -1;
+
+        function handlePickingRootInteraction(index) {
+            const item = selectedCells.find(i => i.index === index);
+            if (item) {
+                pendingFixedIndex = index;
+                // 恢复默认居中显示 (移除之前的定位逻辑)
+                fixFacePopup.style.left = '';
+                fixFacePopup.style.top = '';
+                fixFacePopup.style.transform = '';
+
+                overlay.classList.add('show');
+                fixFacePopup.classList.add('show');
+            }
+        }
+
+        function setFixedFaceType(type) {
+            if (pendingFixedIndex === -1) return;
+
+            fixedRootIndex = pendingFixedIndex;
+            fixedFaceType = type;
+
+            document.querySelectorAll('.cell.fixed-root').forEach(el =>
+                el.classList.remove('fixed-root', 'fixed-front', 'fixed-top', 'fixed-bottom', 'fixed-left', 'fixed-right')
+            );
+
+            const item = selectedCells.find(i => i.index === fixedRootIndex);
+            if (item) {
+                item.el.classList.add('fixed-root');
+                item.el.classList.add(`fixed-${type}`);
+            }
+
+            closePopup();
+            toggleFixMode();
+
+            const names = {
+                'back': '背面', 'front': '前面', 'top': '上面',
+                'bottom': '下面', 'left': '左面', 'right': '右面'
+            };
+            showToast(`已设为${names[type] || '固定面'}`);
+        }
+
+        let currentMarkingIndex = -1;
+        function handleMarkingInteraction(index, cell) {
+            const item = selectedCells.find(i => i.index === index);
+            if (!item) return;
+
+            currentMarkingIndex = index;
+            updateSymbolPopupState();
+            overlay.classList.add('show');
+            markPopup.classList.add('show');
+        }
+
+        function initPopup() {
+            // 支持 1-6 和 A-F
+            const symbols = [
+                '1', '2', '3', '4',
+                '5', '6', 'A', 'B',
+                'C', 'D', 'E', 'F'
+            ];
+            symbolGrid.innerHTML = '';
+            symbols.forEach(s => {
+                const btn = document.createElement('div');
+                btn.className = 'symbol-btn';
+                btn.textContent = s;
+                btn.onclick = () => applySymbol(s);
+                symbolGrid.appendChild(btn);
+            });
+
+            overlay.onclick = () => {
+                closePopup();
+            };
+        }
+
+        // 更新弹窗状态：高亮已使用的，标记当前使用的
+        function updateSymbolPopupState() {
+            const used = new Map();
+            selectedCells.forEach(c => {
+                if (c.symbol) used.set(c.symbol, c.index);
+            });
+
+            const currentItem = selectedCells.find(c => c.index === currentMarkingIndex);
+            const currentSymbol = currentItem ? currentItem.symbol : null;
+            const currentColor = currentItem ? currentItem.color : null;
+
+            // Update Symbol Buttons
+            const btns = symbolGrid.querySelectorAll('.symbol-btn');
+            btns.forEach(btn => {
+                const s = btn.textContent;
+                btn.className = 'symbol-btn'; // reset
+
+                if (s === currentSymbol) {
+                    btn.classList.add('current');
+                } else if (used.has(s)) {
+                    btn.classList.add('used');
+                }
+            });
+        }
+
+        function applyColor(color) {
+            const currentItem = selectedCells.find(c => c.index === currentMarkingIndex);
+            if (currentItem) {
+                currentItem.color = color;
+                currentItem.el.style.backgroundColor = color;
+                currentItem.el.style.borderColor = color;
+                closePopup();
+            }
+        }
+
+        // 应用符号逻辑：独占模式
+        function applySymbol(s) {
+            // ... (keep existing)
+            const currentItem = selectedCells.find(i => i.index === currentMarkingIndex);
+            if (!currentItem) return;
+
+            // 1. 检查该符号是否已被其他格子占用
+            const prevOwner = selectedCells.find(c => c.symbol === s);
+
+            if (prevOwner) {
+                if (prevOwner.index === currentMarkingIndex) {
+                    // 如果点击的是当前格子已有的符号 -> 取消标记 (Toggle off)
+                    currentItem.symbol = '';
+                    currentItem.el.innerHTML = '';
+                    closePopup();
+                    return;
+                } else {
+                    // 如果被其他格子占用 -> 抢过来 (清除原主)
+                    prevOwner.symbol = '';
+                    prevOwner.el.innerHTML = '';
+                }
+            }
+
+            // 2. 赋值给当前格子
+            currentItem.symbol = s;
+            currentItem.el.innerHTML = `<div class="cell-symbol">${s}</div>`;
+
+            closePopup();
+        }
+
+        function closePopup() {
+            overlay.classList.remove('show');
+            markPopup.classList.remove('show');
+            fixFacePopup.classList.remove('show');
+        }
+
+        // --- UI 状态 ---
+        function updateUIState() {
+            const count = selectedCells.length;
+
+            // 修改：只要有选中的格子，就启用所有功能，不进行形状校验
+            if (count > 0) {
+                markBtn.classList.remove('disabled');
+                fixBtn.classList.remove('disabled');
+
+                foldSlider.disabled = false;
+                unfoldBtn.disabled = false;
+                foldBtn.disabled = false;
+
+                foldSlider.parentNode.style.opacity = 1;
+                foldSlider.parentElement.previousElementSibling.style.opacity = 1;
+                foldSlider.parentElement.nextElementSibling.style.opacity = 1;
+            } else {
+                markBtn.classList.add('disabled');
+                markBtn.classList.remove('active');
+                isMarking = false;
+
+                fixBtn.classList.add('disabled');
+                fixBtn.classList.remove('active');
+                isPickingRoot = false;
+
+                // 仅在非折叠状态下禁用滑条
+                if (!isFolded) {
+                    foldSlider.disabled = true;
+                    unfoldBtn.disabled = true;
+                    foldBtn.disabled = true;
+                    foldSlider.parentNode.style.opacity = 0.5;
+                    foldSlider.parentElement.previousElementSibling.style.opacity = 0.5;
+                    foldSlider.parentElement.nextElementSibling.style.opacity = 0.5;
+                }
+
+                gridEl.classList.remove('picking-root');
+            }
+        }
+
+        function toggleFixMode() {
+            isPickingRoot = !isPickingRoot;
+            isMarking = false; markBtn.classList.remove('active');
+
+            if (isPickingRoot) {
+                fixBtn.classList.add('active');
+                gridEl.classList.add('picking-root');
+                showToast("请点击一个蓝色方格作为底面");
+            } else {
+                fixBtn.classList.remove('active');
+                gridEl.classList.remove('picking-root');
+            }
+        }
+
+        function toggleMarkMode() {
+            isMarking = !isMarking;
+            isPickingRoot = false; fixBtn.classList.remove('active');
+
+            if (isMarking) {
+                markBtn.classList.add('active');
+                showToast("点击方格添加标记");
+            } else {
+                markBtn.classList.remove('active');
+            }
+        }
+
+        function resetGrid() {
+            createGrid();
+            exit3DMode();
+            showToast("已清空");
+        }
+
+        function showToast(msg) {
+            toastEl.textContent = msg;
+            toastEl.classList.add('show');
+            setTimeout(() => toastEl.classList.remove('show'), 2000);
+        }
+
+        // --- 折叠逻辑 ---
+
+        foldSlider.addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            if (!isFolded && val > 0) {
+                if (!tryEnter3DMode()) {
+                    e.target.value = 0;
+                    return;
+                }
+            }
+            if (isFolded && val === 0) {
+                // 1.修复完全展开后要恢复为平面；
+                exit3DMode();
+                return;
+            } else if (isFolded) {
+                gridEl.style.opacity = 0;
+                cubeWrapper.style.opacity = 1;
+            }
+            updateFoldAngle(val);
+        });
+
+        function quickFold() {
+            if (!isFolded) {
+                if (!tryEnter3DMode()) return;
+            }
+            animateSlider(parseInt(foldSlider.value), 100);
+        }
+
+        function quickUnfold() {
+            // Allow unfold even if isFolded is true, simply animate to 0
+            animateSlider(parseInt(foldSlider.value), 0);
+        }
+
+        function animateSlider(from, to) {
+            let start = null;
+            function step(timestamp) {
+                if (!start) start = timestamp;
+                const progress = Math.min((timestamp - start) / 500, 1);
+                const val = Math.round(from + (to - from) * progress);
+                foldSlider.value = val;
+
+                // 检查是否归零，需要退出3D
+                if (isFolded && val === 0 && to === 0) {
+                    exit3DMode();
+                    return;
+                }
+
+                updateFoldAngle(val);
+
+                if (val > 0) {
+                    gridEl.style.opacity = 0;
+                    cubeWrapper.style.opacity = 1;
+                } else {
+                    gridEl.style.opacity = 1;
+                    cubeWrapper.style.opacity = 0;
+                }
+
+                if (progress < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
+
+        function tryEnter3DMode() {
+            // 只要有选中的格子就允许进入
+            if (selectedCells.length === 0) return false;
+
+            // 1.六个面选中后如果不能顺利折叠成一个封闭的给出提示。
+            if (selectedCells.length === 6) {
+                if (!checkIsCubeNet(selectedCells)) {
+                    showToast("当前形状无法折叠成封闭正方体");
+                }
+            }
+
+            buildCubeDOM();
+            isFolded = true;
+            stageEl.style.cursor = 'grab';
+            gridEl.style.opacity = 0;
+
+            // 如果是设为 "前面"，则自动旋转视角
+            if (fixedFaceType === 'front') {
+                // 标准是 -20, 20. 自定义前面也许需要 0, 0 或者其他
+                // 暂时保持默认，或者可以设置为 rotationX=0, rotationY=180 看背面
+                // 让用户自己转也行。根据需求：只是标记。
+            }
+
+            return true;
+        }
+
+        function exit3DMode() {
+            isFolded = false;
+            foldSlider.value = 0;
+            cubeWrapper.innerHTML = '';
+            cubeWrapper.style.display = 'none';
+            gridEl.style.opacity = 1;
+            stageEl.style.cursor = '';
+
+            // 重置视角
+            rotationX = -20; rotationY = 20;
+            const scene = document.querySelector('.scene');
+            if (scene) scene.style.transform = '';
+        }
+
+        // --- 核心算法 ---
+        function checkIsCubeNet(cells) {
+            const map = new Map();
+            cells.forEach(c => map.set(`${c.r},${c.c}`, c));
+            const queue = [cells[0]];
+            const visited = new Set([`${cells[0].r},${cells[0].c}`]);
+            let count = 0;
+            while (queue.length) {
+                const curr = queue.shift();
+                count++;
+                [[0, 1], [0, -1], [1, 0], [-1, 0]].forEach(([dr, dc]) => {
+                    const k = `${curr.r + dr},${curr.c + dc}`;
+                    if (map.has(k) && !visited.has(k)) {
+                        visited.add(k);
+                        queue.push(map.get(k));
+                    }
+                });
+            }
+            if (count !== 6) return false;
+
+            const faces = [];
+            const processed = new Set();
+            function fold(k, norm, up) {
+                processed.add(k);
+                const curr = map.get(k);
+                const r = { x: up.y * norm.z - up.z * norm.y, y: up.z * norm.x - up.x * norm.z, z: up.x * norm.y - up.y * norm.z };
+                const dirs = [
+                    { dr: -1, dc: 0, v: up, n: 'u' }, { dr: 1, dc: 0, v: { x: -up.x, y: -up.y, z: -up.z }, n: 'd' },
+                    { dr: 0, dc: -1, v: { x: -r.x, y: -r.y, z: -r.z }, n: 'l' }, { dr: 0, dc: 1, v: r, n: 'r' }
+                ];
+                dirs.forEach(d => {
+                    const nk = `${curr.r + d.dr},${curr.c + d.dc}`;
+                    if (map.has(nk) && !processed.has(nk)) {
+                        let nn, nu;
+                        if (d.n === 'u') { nn = up; nu = { x: -norm.x, y: -norm.y, z: -norm.z }; }
+                        else if (d.n === 'd') { nn = d.v; nu = norm; }
+                        else if (d.n === 'l') { nn = d.v; nu = up; }
+                        else { nn = d.v; nu = up; }
+                        faces.push(nn);
+                        fold(nk, nn, nu);
+                    }
+                });
+            }
+            faces.push({ x: 0, y: 0, z: 1 });
+            fold(`${cells[0].r},${cells[0].c}`, { x: 0, y: 0, z: 1 }, { x: 0, y: 1, z: 0 });
+
+            const unique = new Set(faces.map(v => `${Math.round(v.x)},${Math.round(v.y)},${Math.round(v.z)}`));
+            return unique.size === 6;
+        }
+
+        // --- 3D 构建与旋转 ---
+        let rotationX = -20, rotationY = 20;
+
+        function buildCubeDOM() {
+            // 定义各面的旋转配置
+            // dir: 1 (常规折叠/Base=Back), -1 (反向折叠/Base=Front)
+            // rot: 模型修正旋转，使FixedFace朝向正确方向
+            // Front(Z+), Back(Z- implies Z+ is inside?), Top(Y+), Bottom(Y-), Left(X-), Right(X+)
+            // Note: dir=-1 leaves FixedFace at Z+. We rotate Z+ to TGT.
+            const faceRotations = {
+                'back': { dir: 1, rot: '' }, // Default
+                'front': { dir: -1, rot: '' }, // Z+ is Front. No rot.
+                'top': { dir: -1, rot: 'rotateX(90deg)' }, // Z+ -> Y-
+                'bottom': { dir: 1, rot: 'rotateX(90deg)' },  // Z+ -> Y+
+                'left': { dir: -1, rot: 'rotateY(-90deg)' }, // Z+ -> X-
+                'right': { dir: -1, rot: 'rotateY(90deg)' }   // Z+ -> X+
+            };
+
+            const config = faceRotations[fixedFaceType] || faceRotations['back'];
+            cubeWrapper.dataset.baseRot = config.rot;
+
+            // 4.默认是以最第三行第三个为后面固定折叠，如果没有则以已经选择的靠近中心面的为固定面。
+            if (fixedRootIndex === -1 || !selectedCells.find(c => c.index === fixedRootIndex)) {
+                // 寻找距离 center (2,2) 最近的
+                let minDst = Infinity;
+                let best = null;
+                selectedCells.forEach(c => {
+                    const dst = Math.abs(c.r - 2) + Math.abs(c.c - 2);
+                    if (dst < minDst) { minDst = dst; best = c; }
+                });
+                if (best) {
+                    fixedRootIndex = best.index;
+                    fixedFaceType = 'back'; // 默认为背面
+                }
+            }
+
+            let root = selectedCells.find(c => c.index === fixedRootIndex);
+
+            const map = new Map(selectedCells.map(c => [`${c.r},${c.c}`, c]));
+            const tree = new Map();
+            const queue = [`${root.r},${root.c}`];
+            const visited = new Set(queue);
+
+            while (queue.length) {
+                const currK = queue.shift();
+                const curr = map.get(currK);
+                [[-1, 0, 'top'], [1, 0, 'bottom'], [0, -1, 'left'], [0, 1, 'right']].forEach(([dr, dc, side]) => {
+                    const nk = `${curr.r + dr},${curr.c + dc}`;
+                    if (map.has(nk) && !visited.has(nk)) {
+                        tree.set(nk, { p: currK, side });
+                        visited.add(nk);
+                        queue.push(nk);
+                    }
+                });
+            }
+
+            cubeWrapper.innerHTML = '';
+            cubeWrapper.style.display = 'block';
+            cubeWrapper.className = 'cube-layer';
+
+            const size = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell-size'));
+            const gap = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--grid-gap'));
+            const unit = size + gap;
+
+            const domMap = new Map();
+
+            // Calculate face types for all cells
+            const faceTypeMap = calculateAllFaceTypes(root, fixedFaceType, selectedCells);
+
+            const rootEl = createFaceObj(root, true, faceTypeMap.get(`${root.r},${root.c}`));
+            rootEl.style.left = (root.c * unit) + 'px';
+            rootEl.style.top = (root.r * unit) + 'px';
+            cubeWrapper.appendChild(rootEl);
+            domMap.set(`${root.r},${root.c}`, rootEl);
+
+            const buildQueue = [`${root.r},${root.c}`];
+            const built = new Set(buildQueue);
+
+            while (buildQueue.length) {
+                const pk = buildQueue.shift();
+                const pEl = domMap.get(pk);
+
+                for (let [ck, info] of tree.entries()) {
+                    if (info.p === pk && !built.has(ck)) {
+                        const child = map.get(ck);
+                        // Only pass faceType if it's the root (which is handled outside loop) or if we wanted all faces colored.
+                        // User requested ONLY the Fixed Face (root) syncs color. Others use manual mark.
+                        // So we pass 'null' or undefined for faceType for children.
+
+                        const cEl = createFaceObj(child, false, null);
+                        pEl.appendChild(cEl);
+
+                        const relC = child.c - map.get(pk).c;
+                        const relR = child.r - map.get(pk).r;
+
+                        cEl.style.left = (relC * unit) + 'px';
+                        cEl.style.top = (relR * unit) + 'px';
+
+                        let axis = 'X', deg = 0, origin = 'center', fx = 0, fy = 0;
+
+                        // 获取当前面的配置
+                        const config = faceRotations[fixedFaceType] || { dir: 1 };
+                        const dir = config.dir;
+
+                        if (info.side === 'top') { origin = 'bottom center'; deg = -90 * dir; fy = -size; }
+                        else if (info.side === 'bottom') { origin = 'top center'; deg = 90 * dir; fy = size; }
+                        else if (info.side === 'left') { origin = 'right center'; axis = 'Y'; deg = 90 * dir; fx = -size; }
+                        else { origin = 'left center'; axis = 'Y'; deg = -90 * dir; fx = size; }
+
+                        cEl.style.transformOrigin = origin;
+                        cEl.dataset.axis = axis;
+                        cEl.dataset.deg = deg;
+                        cEl.dataset.fx = fx;
+                        cEl.dataset.fy = fy;
+                        cEl.dataset.ix = relC * unit;
+                        cEl.dataset.iy = relR * unit;
+
+                        domMap.set(ck, cEl);
+                        built.add(ck);
+                        buildQueue.push(ck);
+                    }
+                }
+            }
+
+            const cx = (root.c + 0.5) * unit;
+            const cy = (root.r + 0.5) * unit;
+            cubeWrapper.style.transformOrigin = `${cx}px ${cy}px 0`;
+            updateFoldAngle(0);
+            enableManualRotation();
+        }
+
+        function createFaceObj(cell, isRoot, faceType) {
+            const d = document.createElement('div');
+            d.className = 'cube-face';
+
+            // PRIORITY 1: GLOBAL FIXED FACE (Only for Root)
+            if (isRoot && faceType) {
+                d.classList.add('is-fixed');
+                d.classList.add(`fixed-${faceType}`);
+                // Background color is handled by CSS class
+            }
+            // PRIORITY 2: MANUAL COLOR MARK (For others, or if root somehow implies mix)
+            // But per request: "Fixed Face priority high". 
+            // If it is Root, we SKIP applying manual color as inline style to avoid conflict,
+            // or we rely on CSS !important. Cleaner to just skip inline assignment for root.
+            else if (cell.color) {
+                d.style.backgroundColor = cell.color;
+            }
+
+            if (cell.symbol) {
+                d.innerHTML = `<div class="cell-symbol">${cell.symbol}</div>`;
+                d.dataset.symbol = cell.symbol;
+            }
+
+            return d;
+        }
+
+        function updateFoldAngle(percent) {
+            const faces = cubeWrapper.querySelectorAll('.cube-face');
+            faces.forEach(f => {
+                if (f.parentElement.classList.contains('cube-layer')) return;
+
+                const axis = f.dataset.axis;
+                const maxDeg = parseFloat(f.dataset.deg);
+                const curDeg = maxDeg * (percent / 100);
+
+                const ix = parseFloat(f.dataset.ix);
+                const iy = parseFloat(f.dataset.iy);
+                const fx = parseFloat(f.dataset.fx);
+                const fy = parseFloat(f.dataset.fy);
+
+                const cx = ix + (fx - ix) * (percent / 100);
+                const cy = iy + (fy - iy) * (percent / 100);
+
+                f.style.left = cx + 'px';
+                f.style.top = cy + 'px';
+                f.style.transform = `rotate${axis}(${curDeg}deg)`;
+            });
+
+
+
+            // 旋转现在应用在 .scene 上
+            // cubeWrapper.style.transform = `translateZ(0) rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+
+            // 应用基础旋转 (Base Rotation for Face Orientation)
+            const baseRot = cubeWrapper.dataset.baseRot || '';
+            cubeWrapper.style.transform = `${baseRot} translateZ(0)`;
+
+            const scene = document.querySelector('.scene');
+            scene.style.transform = `rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+
+            const symbols = cubeWrapper.querySelectorAll('.cell-symbol');
+            // Allow flipping only for Back (default) and Bottom faces
+            const allowFlip = (fixedFaceType === 'back' || fixedFaceType === 'bottom');
+
+            symbols.forEach(s => {
+                if (allowFlip) {
+                    s.style.transform = percent > 90 ? 'scaleX(-1)' : 'none';
+                } else {
+                    s.style.transform = 'none';
+                }
+            });
+            // removed manual-rotate class logic
+        }
+
+        function enableManualRotation() {
+            let lastX, lastY, dragging = false;
+            const handler = (e) => {
+                // 3D模式下允许旋转
+                if (!isFolded) return;
+                // 防止拖动滑块时触发旋转
+                if (e.target.closest('#sidebar-right')) return;
+
+                // 2. 修复 touch clientX 报错
+                let clientX, clientY;
+                if (e.changedTouches) {
+                    // touchstart/touchmove/touchend 都有 changedTouches
+                    clientX = e.changedTouches[0].clientX;
+                    clientY = e.changedTouches[0].clientY;
+                } else {
+                    clientX = e.clientX;
+                    clientY = e.clientY;
+                }
+
+                if (e.type === 'mousedown' || e.type === 'touchstart') {
+                    dragging = true;
+                    lastX = clientX; lastY = clientY;
+                } else if (e.type === 'mousemove' || e.type === 'touchmove') {
+                    if (!dragging) return;
+                    const dx = clientX - lastX;
+                    const dy = clientY - lastY;
+                    rotationY += dx * 0.15; // Slower rotation
+                    rotationX -= dy * 0.15; // Slower rotation
+
+                    const scene = document.querySelector('.scene');
+                    if (scene) scene.style.transform = `rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+
+                    lastX = clientX; lastY = clientY;
+                } else {
+                    dragging = false;
+                }
+            };
+
+            ['mousedown', 'mousemove', 'mouseup', 'touchstart', 'touchmove', 'touchend'].forEach(evt => {
+                document.addEventListener(evt, handler, { passive: true });
+            });
+        }
+
+        // Helper to calculate 3D face type for all cells
+        function calculateAllFaceTypes(root, rootType, allCells) {
+            const map = new Map(allCells.map(c => [`${c.r},${c.c}`, c]));
+            const faceTypeMap = new Map();
+
+            // Vector definitions
+            const V = {
+                front: { x: 0, y: 0, z: 1 }, back: { x: 0, y: 0, z: -1 },
+                top: { x: 0, y: -1, z: 0 }, bottom: { x: 0, y: 1, z: 0 },
+                left: { x: -1, y: 0, z: 0 }, right: { x: 1, y: 0, z: 0 }
+            };
+
+            // Determine initial vectors based on rootType
+            let startNorm, startUp;
+
+            // Mapping rootType to Normal vector
+            if (rootType === 'front') startNorm = V.front;
+            else if (rootType === 'back') startNorm = V.back;
+            else if (rootType === 'top') startNorm = V.top;
+            else if (rootType === 'bottom') startNorm = V.bottom;
+            else if (rootType === 'left') startNorm = V.left;
+            else if (rootType === 'right') startNorm = V.right;
+            else startNorm = V.back; // default
+
+            // Determine Up vector valid for the face (simplified for standard CSS cube aligned to axes)
+            // If Normal is Y axis (top/bottom), Up is usually Z- (Back)
+            // If Normal is Z axis (front/back), Up is Y- (Top)
+            // If Normal is X axis (left/right), Up is Y- (Top)
+            if (rootType === 'top' || rootType === 'bottom') startUp = V.back;
+            else startUp = V.top;
+
+            const processed = new Set();
+
+            function trace(k, norm, up) {
+                processed.add(k);
+                // Assign type based on norm
+                let type = '';
+                const nx = Math.round(norm.x), ny = Math.round(norm.y), nz = Math.round(norm.z);
+                if (nx === 0 && ny === 0 && nz === 1) type = 'front';
+                else if (nx === 0 && ny === 0 && nz === -1) type = 'back';
+                else if (nx === 0 && ny === -1 && nz === 0) type = 'top';
+                else if (nx === 0 && ny === 1 && nz === 0) type = 'bottom';
+                else if (nx === -1 && ny === 0 && nz === 0) type = 'left';
+                else if (nx === 1 && ny === 0 && nz === 0) type = 'right';
+
+                faceTypeMap.set(k, type);
+
+                const curr = map.get(k);
+                // Cross product for Right vector: up x norm
+                const r = { x: up.y * norm.z - up.z * norm.y, y: up.z * norm.x - up.x * norm.z, z: up.x * norm.y - up.y * norm.z };
+
+                const dirs = [
+                    { dr: -1, dc: 0, v: up, n: 'u' },
+                    { dr: 1, dc: 0, v: { x: -up.x, y: -up.y, z: -up.z }, n: 'd' },
+                    { dr: 0, dc: -1, v: { x: -r.x, y: -r.y, z: -r.z }, n: 'l' },
+                    { dr: 0, dc: 1, v: r, n: 'r' }
+                ];
+
+                dirs.forEach(d => {
+                    const nk = `${curr.r + d.dr},${curr.c + d.dc}`;
+                    if (map.has(nk) && !processed.has(nk)) {
+                        let nn, nu;
+                        // Determine new Normal(nn) and new Up(nu)
+                        // This logic must match the physical folding:
+                        // Moving UP(u) in grid -> rotates -90deg around X-axis (if up is Y-)
+                        // Norm becomes Up, Up becomes -Norm
+                        if (d.n === 'u') { nn = up; nu = { x: -norm.x, y: -norm.y, z: -norm.z }; }
+                        else if (d.n === 'd') { nn = d.v; nu = norm; } // Down(v=-up). Norm becomes -Up, Up becomes Norm.
+                        else if (d.n === 'l') { nn = d.v; nu = up; } // Left(-right). Norm becomes -Right, Up stays Up.
+                        else { nn = d.v; nu = up; } // Right. Norm becomes Right, Up stays Up.
+
+                        trace(nk, nn, nu);
+                    }
+                });
+            }
+
+            trace(`${root.r},${root.c}`, startNorm, startUp);
+            return faceTypeMap;
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
